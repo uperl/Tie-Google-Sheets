@@ -10,13 +10,18 @@ my %modules;
 my $post_diag;
 
 $modules{$_} = $_ for qw(
+  Class::Tiny
+  Cpanel::JSON::XS
   Crypt::JWT
   Crypt::PK::RSA
   ExtUtils::MakeMaker
   HTTP::AnyUA
+  JSON::MaybeXS
+  JSON::PP
+  JSON::XS
   Test2::V0
+  URI
   URI::Escape
-  true
 );
 
 

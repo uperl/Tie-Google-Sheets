@@ -233,7 +233,7 @@ L</service_account>.
 
 The epoch time at which L</token> expires.
 
-=head1 METHODS
+=head1 CONSTRUCTOR
 
 =head2 new
 
@@ -241,6 +241,8 @@ The epoch time at which L</token> expires.
 
 Constructor. C<%options> are the same as documented in
 L<Tie::Google::Sheets/CONSTRUCTOR>.
+
+=head1 METHODS
 
 =head2 sheet_titles
 

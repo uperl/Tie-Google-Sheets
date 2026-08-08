@@ -205,6 +205,34 @@ This is a low level class used internally by L<Tie::Google::Sheets> to talk to
 the Google Sheets API. It is not part of the public interface and may change
 without notice; do not use it directly.
 
+=head1 ATTRIBUTES
+
+=head2 spreadsheet_id
+
+The id of the spreadsheet being accessed.
+
+=head2 ua
+
+The L<HTTP::AnyUA> instance used to make requests.
+
+=head2 access_token
+
+The OAuth2 bearer token (or code reference) given to L</new>, if any.
+
+=head2 service_account
+
+The decoded service account key, if a service account was given to
+L</new>.
+
+=head2 token
+
+The most recently obtained OAuth2 access token, when authenticating via
+L</service_account>.
+
+=head2 token_expires
+
+The epoch time at which L</token> expires.
+
 =head1 METHODS
 
 =head2 new

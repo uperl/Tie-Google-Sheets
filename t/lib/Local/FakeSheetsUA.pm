@@ -42,6 +42,9 @@ package Local::FakeSheetsUA {
         if($path =~ /\A([^:\/]+):batchUpdate\z/) {
             return $self->_batch_update($opts);
         }
+        elsif($path =~ m{\A[^/]+/values:batchUpdate\z}) {
+            return $self->_values_batch_update($opts);
+        }
         elsif($path =~ m{\A[^/]+/values/(.+):clear\z}) {
             return $self->_clear($1);
         }
@@ -108,6 +111,19 @@ package Local::FakeSheetsUA {
         $self->{sheets}{$title}{cells}{ uc $a1 } = $value;
 
         return $self->_json_response(200, 1, { spreadsheetId => $self->{id}, updatedRange => $range_enc });
+    }
+
+    sub _values_batch_update ($self, $opts) {
+        my $body = decode_json($opts->{content});
+
+        for my $value_range (@{ $body->{data} // [] }) {
+            my($title, $a1) = _parse_range($value_range->{range});
+            return $self->_json_response(400, 0, { error => { message => "Unable to parse range: no such sheet $title" } })
+                unless exists $self->{sheets}{$title};
+            $self->{sheets}{$title}{cells}{ uc $a1 } = $value_range->{values}[0][0];
+        }
+
+        return $self->_json_response(200, 1, { spreadsheetId => $self->{id}, totalUpdatedCells => scalar @{ $body->{data} // [] } });
     }
 
     sub _clear ($self, $range_enc) {

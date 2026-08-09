@@ -137,10 +137,13 @@ non-empty cell in the worksheet's used range.
 
 =head1 CAVEATS
 
-Every C<FETCH> or C<STORE> is a separate Google Sheets API call. Iterating
-over the hash (with C<keys>, C<each>, and so on) fetches the whole used range
-of the worksheet in a single call. There is no local caching, so be mindful
-of L<Google's API quotas|https://developers.google.com/sheets/api/limits>
+Every C<FETCH> or C<STORE> is a separate Google Sheets API call, unless the
+owning L<Tie::Google::Sheets> document was constructed with C<batch_size>,
+in which case C<STORE> writes are queued and sent together; see
+L<Tie::Google::Sheets/batch_size>. Iterating over the hash (with C<keys>,
+C<each>, and so on) fetches the whole used range of the worksheet in a
+single call. There is no local caching, so be mindful of
+L<Google's API quotas|https://developers.google.com/sheets/api/limits>
 when accessing many cells.
 
 =head1 SEE ALSO

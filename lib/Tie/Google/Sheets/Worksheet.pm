@@ -7,11 +7,17 @@ package Tie::Google::Sheets::Worksheet {
 
     use Carp qw( croak );
 
+    use Class::Tiny qw( _client _title );
+
+    sub BUILDARGS ($class, %args) {
+        return {
+            _client => $args{client},
+            _title  => $args{title},
+        };
+    }
+
     sub TIEHASH ($class, %args) {
-        return bless {
-            client => $args{client},
-            title  => $args{title},
-        }, $class;
+        return $class->new(%args);
     }
 
     sub _normalize_key ($self, $key) {
@@ -20,18 +26,18 @@ package Tie::Google::Sheets::Worksheet {
     }
 
     sub FETCH ($self, $key) {
-        return $self->{client}->get_value($self->{title}, $self->_normalize_key($key));
+        return $self->_client->get_value($self->_title, $self->_normalize_key($key));
     }
 
     sub STORE ($self, $key, $value) {
-        $self->{client}->update_value($self->{title}, $self->_normalize_key($key), $value);
+        $self->_client->update_value($self->_title, $self->_normalize_key($key), $value);
         return $value;
     }
 
     sub DELETE ($self, $key) {
         $key = $self->_normalize_key($key);
-        my $old = $self->{client}->get_value($self->{title}, $key);
-        $self->{client}->clear_value($self->{title}, $key);
+        my $old = $self->_client->get_value($self->_title, $key);
+        $self->_client->clear_value($self->_title, $key);
         return $old;
     }
 
@@ -40,12 +46,12 @@ package Tie::Google::Sheets::Worksheet {
     }
 
     sub CLEAR ($self) {
-        $self->{client}->clear_range($self->{title});
+        $self->_client->clear_range($self->_title);
         return;
     }
 
     sub FIRSTKEY ($self) {
-        my $grid = $self->{client}->get_all_values($self->{title});
+        my $grid = $self->_client->get_all_values($self->_title);
         my @keys;
         for my $r (0 .. $#$grid) {
             my $row = $grid->[$r] // [];

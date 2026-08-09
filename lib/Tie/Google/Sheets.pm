@@ -44,7 +44,7 @@ package Tie::Google::Sheets {
 
         if(is_plain_hashref($value)) {
             my $worksheet = $self->FETCH($title);
-            $worksheet->{$_} = $value->{$_} for keys %$value;
+            $worksheet->{$_} = $value->{$_} for keys $value->%*;
         }
 
         return $value;
@@ -57,7 +57,7 @@ package Tie::Google::Sheets {
     }
 
     sub EXISTS ($self, $title) {
-        return !!any { $_ eq $title } @{ $self->_client->sheet_titles };
+        return !!any { $_ eq $title } $self->_client->sheet_titles->@*;
     }
 
     sub CLEAR ($self) {
@@ -87,7 +87,7 @@ package Tie::Google::Sheets {
     }
 
     sub worksheet_titles ($self) {
-        return @{ $self->_client->sheet_titles };
+        return $self->_client->sheet_titles->@*;
     }
 
     sub flush ($self) {

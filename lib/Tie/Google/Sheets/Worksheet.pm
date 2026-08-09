@@ -53,9 +53,9 @@ package Tie::Google::Sheets::Worksheet {
     sub FIRSTKEY ($self) {
         my $grid = $self->_client->get_all_values($self->_title);
         my @keys;
-        for my $r (0 .. $#$grid) {
+        for my $r (0 .. $grid->$#*) {
             my $row = $grid->[$r] // [];
-            for my $c (0 .. $#$row) {
+            for my $c (0 .. $row->$#*) {
                 my $val = $row->[$c];
                 next unless defined $val && length $val;
                 push @keys, _col_letter($c + 1) . ($r + 1);

@@ -123,7 +123,7 @@ package Tie::Google::Sheets::Client {
     }
 
     sub _request ($self, $method, $url, %opts) {
-        my %headers = ( authorization => 'Bearer ' . $self->_access_token, %{ $opts{headers} // {} } );
+        my %headers = ( authorization => 'Bearer ' . $self->_access_token, ( $opts{headers} // {} )->%* );
         my %http_opts = ( headers => \%headers );
         if(defined $opts{body}) {
             $headers{'content-type'} = 'application/json';
@@ -139,7 +139,7 @@ package Tie::Google::Sheets::Client {
 
     sub _url ($self, $segments = [], $action = undef, %query) {
         my $uri = URI->new(API_BASE);
-        $uri->path_segments($uri->path_segments, $self->spreadsheet_id, @$segments);
+        $uri->path_segments($uri->path_segments, $self->spreadsheet_id, $segments->@*);
         $uri->path($uri->path . $action) if defined $action;
         $uri->query_form(%query) if %query;
         return $uri;
@@ -155,13 +155,13 @@ package Tie::Google::Sheets::Client {
     sub sheet_titles ($self) {
         $self->flush;
         my $data = $self->_request('GET', $self->_url([], undef, fields => 'sheets.properties.title'));
-        return [ map { $_->{properties}{title} } @{ $data->{sheets} // [] } ];
+        return [ map { $_->{properties}{title} } ( $data->{sheets} // [] )->@* ];
     }
 
     sub sheet_id_for_title ($self, $title) {
         $self->flush;
         my $data = $self->_request('GET', $self->_url([], undef, fields => 'sheets.properties'));
-        for my $sheet (@{ $data->{sheets} // [] }) {
+        for my $sheet (( $data->{sheets} // [] )->@*) {
             return $sheet->{properties}{sheetId} if $sheet->{properties}{title} eq $title;
         }
         return undef;
@@ -178,8 +178,8 @@ package Tie::Google::Sheets::Client {
         my $range = $self->_quote_range($title, $a1);
 
         if($self->batch_size) {
-            push @{ $self->_pending }, { range => $range, majorDimension => 'ROWS', values => [[$value]] };
-            $self->flush if @{ $self->_pending } >= $self->batch_size;
+            push $self->_pending->@*, { range => $range, majorDimension => 'ROWS', values => [[$value]] };
+            $self->flush if $self->_pending->@* >= $self->batch_size;
         }
         else {
             $self->_request('PUT', $self->_url([ 'values', $range ], undef, valueInputOption => 'USER_ENTERED'),
@@ -191,7 +191,7 @@ package Tie::Google::Sheets::Client {
     }
 
     sub flush ($self) {
-        return unless @{ $self->_pending };
+        return unless $self->_pending->@*;
 
         my $data = $self->_pending;
         $self->_pending([]);
@@ -241,7 +241,7 @@ package Tie::Google::Sheets::Client {
 
     sub DEMOLISH ($self, $global_destruction) {
         return if $global_destruction;
-        return unless $self->{_pending} && @{ $self->{_pending} };
+        return unless $self->{_pending} && $self->{_pending}->@*;
         try {
             $self->flush;
         } catch ($e) {

@@ -110,8 +110,13 @@ package Tie::Google::Sheets::Client {
 
         my $message = $res->{reason} // 'unknown error';
         if($res->{content}) {
-            my $data = eval { decode_json($res->{content}) };
-            $message = $data->{error}{message} if ref($data) eq 'HASH' && $data->{error}{message};
+            my $data;
+            try {
+                $data = decode_json $res->{content};
+                $message = $data->{error}{message} if ref($data) eq 'HASH' && $data->{error}{message};
+            } catch ($e) {
+                warn "warning decoding JSON: $e";
+            }
         }
         croak "Google Sheets API error ($res->{status}): $message";
     }
@@ -236,8 +241,11 @@ package Tie::Google::Sheets::Client {
     sub DEMOLISH ($self, $global_destruction) {
         return if $global_destruction;
         return unless $self->{_pending} && @{ $self->{_pending} };
-        local $@;
-        eval { $self->flush };
+        try {
+            $self->flush;
+        } catch ($e) {
+            warn "warning flushing DEMOLISH: $e";
+        }
         return;
     }
 

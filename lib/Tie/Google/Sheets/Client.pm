@@ -11,6 +11,7 @@ package Tie::Google::Sheets::Client {
     use URI;
     use URI::Escape qw( uri_escape );
     use Crypt::JWT qw( encode_jwt );
+    use Ref::Util qw( is_ref is_plain_hashref is_plain_coderef );
     use Class::Tiny qw( spreadsheet_id ua access_token service_account ), {
         token         => undef,
         token_expires => 0,
@@ -57,9 +58,9 @@ package Tie::Google::Sheets::Client {
     }
 
     sub _load_service_account ($class, $val) {
-        return $val if ref($val) eq 'HASH';
+        return $val if is_plain_hashref($val);
         croak 'service_account must be a hashref of the decoded key file, or a path to one'
-            unless !ref($val) && -f $val;
+            unless !is_ref($val) && -f $val;
         open my $fh, '<:raw', $val
             or croak "unable to open service account key file $val: $!";
         my $json = do { local $/; <$fh> };
@@ -69,7 +70,7 @@ package Tie::Google::Sheets::Client {
 
     sub _access_token ($self) {
         if(defined(my $token = $self->access_token)) {
-            return ref($token) eq 'CODE' ? $token->() : $token;
+            return is_plain_coderef($token) ? $token->() : $token;
         }
 
         return $self->token if $self->token && time() < $self->token_expires - 30;
@@ -113,7 +114,7 @@ package Tie::Google::Sheets::Client {
             my $data;
             try {
                 $data = decode_json $res->{content};
-                $message = $data->{error}{message} if ref($data) eq 'HASH' && $data->{error}{message};
+                $message = $data->{error}{message} if is_plain_hashref($data) && $data->{error}{message};
             } catch ($e) {
                 warn "warning decoding JSON: $e";
             }

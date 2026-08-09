@@ -7,6 +7,7 @@ package Tie::Google::Sheets {
 
     use Carp qw( croak );
     use List::Util qw( any );
+    use Ref::Util qw( is_plain_hashref );
     use Tie::Google::Sheets::Client;
     use Tie::Google::Sheets::Worksheet;
 
@@ -29,12 +30,12 @@ package Tie::Google::Sheets {
         croak "worksheet '$title' already exists; assign individual cells instead, e.g. \$doc{$title}{A1} = ..."
             if $self->EXISTS($title);
         croak 'a new worksheet may only be assigned undef, or a hashref of cell => value pairs'
-            if defined($value) && ref($value) ne 'HASH';
+            if defined($value) && !is_plain_hashref($value);
 
         $self->{client}->add_sheet($title);
         delete $self->{worksheets}{$title};
 
-        if(ref $value eq 'HASH') {
+        if(is_plain_hashref($value)) {
             my $worksheet = $self->FETCH($title);
             $worksheet->{$_} = $value->{$_} for keys %$value;
         }

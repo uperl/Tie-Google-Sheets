@@ -233,8 +233,8 @@ package Tie::Google::Sheets::Client {
         return;
     }
 
-    sub DESTROY ($self) {
-        return if ${^GLOBAL_PHASE} eq 'DESTRUCT';
+    sub DEMOLISH ($self, $global_destruction) {
+        return if $global_destruction;
         return unless $self->{_pending} && @{ $self->{_pending} };
         local $@;
         eval { $self->flush };

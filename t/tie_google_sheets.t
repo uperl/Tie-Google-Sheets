@@ -71,6 +71,25 @@ subtest 'worksheet management' => sub {
     like dies { %$doc = () }, qr/cannot delete every worksheet/, 'clearing the document croaks';
 };
 
+subtest 'worksheet copying' => sub {
+    my($doc, $mock) = build_doc();
+
+    $doc->{Sheet1}{A1} = 'hello';
+
+    my $copy = tied(%$doc)->copy_worksheet('Sheet1', 'Sheet1 Copy');
+    ok exists $doc->{'Sheet1 Copy'}, 'copy_worksheet creates the destination worksheet';
+    is $copy->{A1}, 'hello', 'copy_worksheet returns the new worksheet, with the source data copied';
+    is $doc->{'Sheet1 Copy'}{A1}, 'hello', 'copied cell is visible via the tied hash too';
+
+    is $doc->{Sheet1}{A1}, 'hello', 'source worksheet is unaffected';
+
+    like dies { tied(%$doc)->copy_worksheet('NoSuchSheet', 'Whatever') },
+        qr/no such worksheet/, 'copying an unknown source worksheet croaks';
+
+    like dies { tied(%$doc)->copy_worksheet('Sheet1', 'Sheet1 Copy') },
+        qr/already exists/, 'copying onto an existing destination worksheet croaks';
+};
+
 subtest 'write batching' => sub {
     my($doc, $mock) = build_doc(batch_size => 2);
 

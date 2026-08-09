@@ -88,6 +88,16 @@ package Tie::Google::Sheets {
         return $self->DELETE($title);
     }
 
+    sub copy_worksheet ($self, $from_title, $to_title) {
+        croak "worksheet '$to_title' already exists; delete it first, or choose a different name"
+            if $self->EXISTS($to_title);
+
+        $self->_client->copy_worksheet($from_title, $to_title);
+        delete $self->_worksheets->{$to_title};
+
+        return $self->FETCH($to_title);
+    }
+
     sub worksheet_titles ($self) {
         return $self->_client->sheet_titles->@*;
     }
@@ -259,6 +269,16 @@ This is equivalent to C<< $doc{$title} = \%cells >>.
  tied(%doc)->delete_worksheet($title);
 
 Deletes the worksheet named C<$title>. Equivalent to C<< delete $doc{$title} >>.
+
+=head2 copy_worksheet
+
+ tied(%doc)->copy_worksheet($from_title, $to_title);
+
+Copies the worksheet named C<$from_title> to a new worksheet named
+C<$to_title>, including its formatting, data validation, and other
+properties, not just its cell values. Croaks if C<$from_title> doesn't
+exist, or if C<$to_title> already exists. Returns the new worksheet
+hashref, the same as C<$doc{$to_title}>.
 
 =head2 worksheet_titles
 

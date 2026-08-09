@@ -160,6 +160,20 @@ package Local::FakeSheetsUA {
                 delete $self->{sheets}{$title};
                 $self->{order} = [ grep { $_ ne $title } @{ $self->{order} } ];
             }
+            elsif(my $dup = $req->{duplicateSheet}) {
+                my $sheet_id = $dup->{sourceSheetId};
+                my($from_title) = grep { $self->{sheets}{$_}{id} == $sheet_id } @{ $self->{order} };
+                return $self->_json_response(400, 0, { error => { message => "no such sheetId: $sheet_id" } })
+                    unless defined $from_title;
+                my $to_title = $dup->{newSheetName};
+                return $self->_json_response(400, 0, { error => { message => "sheet already exists: $to_title" } })
+                    if exists $self->{sheets}{$to_title};
+                $self->{sheets}{$to_title} = {
+                    id    => $self->{next_id}++,
+                    cells => { %{ $self->{sheets}{$from_title}{cells} } },
+                };
+                push @{ $self->{order} }, $to_title;
+            }
         }
 
         return $self->_json_response(200, 1, { spreadsheetId => $self->{id}, replies => [{}] });

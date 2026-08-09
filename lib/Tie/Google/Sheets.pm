@@ -11,17 +11,24 @@ package Tie::Google::Sheets {
     use Tie::Google::Sheets::Client;
     use Tie::Google::Sheets::Worksheet;
 
+    use Class::Tiny qw( _client ), {
+        _worksheets => sub { {} },
+    };
+
+    sub BUILDARGS ($class, %args) {
+        return {
+            _client => Tie::Google::Sheets::Client->new(%args),
+        };
+    }
+
     sub TIEHASH ($class, %args) {
-        return bless {
-            client     => Tie::Google::Sheets::Client->new(%args),
-            worksheets => {},
-        }, $class;
+        return $class->new(%args);
     }
 
     sub FETCH ($self, $title) {
-        return $self->{worksheets}{$title} //= do {
+        return $self->_worksheets->{$title} //= do {
             my %worksheet;
-            tie %worksheet, 'Tie::Google::Sheets::Worksheet', client => $self->{client}, title => $title;
+            tie %worksheet, 'Tie::Google::Sheets::Worksheet', client => $self->_client, title => $title;
             \%worksheet;
         };
     }
@@ -32,8 +39,8 @@ package Tie::Google::Sheets {
         croak 'a new worksheet may only be assigned undef, or a hashref of cell => value pairs'
             if defined($value) && !is_plain_hashref($value);
 
-        $self->{client}->add_sheet($title);
-        delete $self->{worksheets}{$title};
+        $self->_client->add_sheet($title);
+        delete $self->_worksheets->{$title};
 
         if(is_plain_hashref($value)) {
             my $worksheet = $self->FETCH($title);
@@ -44,13 +51,13 @@ package Tie::Google::Sheets {
     }
 
     sub DELETE ($self, $title) {
-        $self->{client}->delete_sheet($title);
-        delete $self->{worksheets}{$title};
+        $self->_client->delete_sheet($title);
+        delete $self->_worksheets->{$title};
         return undef;
     }
 
     sub EXISTS ($self, $title) {
-        return !!any { $_ eq $title } @{ $self->{client}->sheet_titles };
+        return !!any { $_ eq $title } @{ $self->_client->sheet_titles };
     }
 
     sub CLEAR ($self) {
@@ -59,7 +66,7 @@ package Tie::Google::Sheets {
     }
 
     sub FIRSTKEY ($self) {
-        $self->{_iter}     = $self->{client}->sheet_titles;
+        $self->{_iter}     = $self->_client->sheet_titles;
         $self->{_iter_pos} = 0;
         return $self->NEXTKEY;
     }
@@ -80,11 +87,11 @@ package Tie::Google::Sheets {
     }
 
     sub worksheet_titles ($self) {
-        return @{ $self->{client}->sheet_titles };
+        return @{ $self->_client->sheet_titles };
     }
 
     sub flush ($self) {
-        $self->{client}->flush;
+        $self->_client->flush;
         return;
     }
 

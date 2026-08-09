@@ -20,8 +20,11 @@ package Tie::Google::Sheets::Client {
         token         => undef,
         token_expires => 0,
         batch_size    => undef,
+        backoff_retry => undef,
         _pending      => sub { [] },
     };
+
+    our $SLEEP = sub ($seconds) { sleep $seconds };
 
     use constant {
         API_BASE  => 'https://sheets.googleapis.com/v4/spreadsheets',
@@ -45,6 +48,9 @@ package Tie::Google::Sheets::Client {
         croak 'batch_size must be a positive integer'
             if defined $args{batch_size} && $args{batch_size} !~ /\A[1-9][0-9]*\z/;
 
+        croak 'backoff_retry must be a positive integer'
+            if defined $args{backoff_retry} && $args{backoff_retry} !~ /\A[1-9][0-9]*\z/;
+
         my $ua = $args{any_ua} // HTTP::AnyUA->new( ua => $args{ua} // do {
             require HTTP::Tiny;
             HTTP::Tiny->new
@@ -58,6 +64,7 @@ package Tie::Google::Sheets::Client {
                 ? $class->_load_service_account($args{service_account})
                 : undef,
             batch_size      => $args{batch_size},
+            backoff_retry   => $args{backoff_retry},
         };
     }
 
@@ -135,7 +142,13 @@ package Tie::Google::Sheets::Client {
             $http_opts{content} = encode_json($opts{body});
         }
 
-        my $res = $self->ua->request($method, $url, \%http_opts);
+        my $attempts = ($self->backoff_retry // 0) + 1;
+        my $res;
+        for my $attempt (1 .. $attempts) {
+            $res = $self->ua->request($method, $url, \%http_opts);
+            last if $res->{success} || $res->{status} != 429 || $attempt == $attempts;
+            $SLEEP->(2 ** ($attempt - 1));
+        }
         $self->_croak_on_error($res);
 
         return undef unless length $res->{content};
@@ -309,6 +322,13 @@ The epoch time at which L</token> expires.
 The maximum number of pending cell writes accumulated by L</update_value>
 before they are automatically flushed. C<undef> (the default) disables
 batching: L</update_value> sends each write immediately.
+
+=head2 backoff_retry
+
+The maximum number of times an API request will be retried, with
+exponential backoff, after being rate limited by Google (HTTP status 429).
+C<undef> (the default) disables retrying: a rate limited request fails
+immediately.
 
 =head1 CONSTRUCTOR
 

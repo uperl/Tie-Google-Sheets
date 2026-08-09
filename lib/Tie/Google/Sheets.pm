@@ -207,6 +207,14 @@ before any worksheet is added or deleted, and when C<%doc> (or the last
 reference to it) goes out of scope. Queued writes can also be flushed
 explicitly at any time; see L</flush>.
 
+=item backoff_retry
+
+Enables automatic retry when Google rate limits a request (HTTP status
+429). When set to a positive integer, a rate limited API call is retried
+that many times, with exponential backoff (1, 2, 4, ... seconds) between
+attempts, before giving up and croaking. Defaults to C<undef>, meaning a
+rate limited request fails immediately.
+
 =back
 
 =head1 TIE METHODS

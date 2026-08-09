@@ -21,15 +21,16 @@ package Local::FakeSheetsUA {
 
     sub calls ($self) { return @{ $self->{calls} } }
 
-    sub fail_next ($self, $status, $message) {
-        $self->{fail} = { status => $status, message => $message };
+    sub fail_next ($self, $status, $message, $times = 1) {
+        $self->{fail} = { status => $status, message => $message, times => $times };
         return;
     }
 
     sub request ($self, $method, $url, $opts = undef) {
         push @{ $self->{calls} }, { method => $method, url => $url, opts => $opts // {} };
 
-        if(my $fail = delete $self->{fail}) {
+        if(my $fail = $self->{fail}) {
+            delete $self->{fail} if --$fail->{times} <= 0;
             return $self->_json_response($fail->{status}, 0, { error => { message => $fail->{message} } });
         }
 

@@ -7,6 +7,8 @@ package Tie::Google::Sheets::Worksheet {
 
     use Carp qw( croak );
 
+    our @CARP_NOT = qw( Tie::Google::Sheets Tie::Google::Sheets::Client Class::Tiny::Object );
+
     use Class::Tiny qw( _client _title );
 
     sub BUILDARGS ($class, %args) {

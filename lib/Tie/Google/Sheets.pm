@@ -11,6 +11,8 @@ package Tie::Google::Sheets {
     use Tie::Google::Sheets::Client;
     use Tie::Google::Sheets::Worksheet;
 
+    our @CARP_NOT = qw( Tie::Google::Sheets::Client Tie::Google::Sheets::Worksheet Class::Tiny::Object );
+
     use Class::Tiny qw( _client ), {
         _worksheets => sub { {} },
     };

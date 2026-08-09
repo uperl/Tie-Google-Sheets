@@ -12,6 +12,9 @@ package Tie::Google::Sheets::Client {
     use URI::Escape qw( uri_escape );
     use Crypt::JWT qw( encode_jwt );
     use Ref::Util qw( is_ref is_plain_hashref is_plain_coderef );
+
+    our @CARP_NOT = qw( Tie::Google::Sheets Tie::Google::Sheets::Worksheet Class::Tiny::Object );
+
     use Class::Tiny qw( spreadsheet_id ua access_token service_account ), {
         token         => undef,
         token_expires => 0,

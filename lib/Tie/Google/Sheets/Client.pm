@@ -244,6 +244,19 @@ package Tie::Google::Sheets::Client {
         return;
     }
 
+    sub copy_worksheet ($self, $from_title, $to_title) {
+        $self->flush;
+        my $sheet_id = $self->sheet_id_for_title($from_title);
+        croak "no such worksheet: $from_title" unless defined $sheet_id;
+        $self->_request('POST', $self->_url([], ':batchUpdate'), body => {
+            requests => [ { duplicateSheet => {
+                sourceSheetId => $sheet_id,
+                newSheetName  => $to_title,
+            } } ],
+        });
+        return;
+    }
+
     sub DEMOLISH ($self, $global_destruction) {
         return if $global_destruction;
         return unless $self->{_pending} && $self->{_pending}->@*;
@@ -377,5 +390,13 @@ Adds a new, empty worksheet named C<$title>.
  $client->delete_sheet($title);
 
 Deletes the worksheet named C<$title>.
+
+=head2 copy_worksheet
+
+ $client->copy_worksheet($from_title, $to_title);
+
+Copies the worksheet named C<$from_title> to a new worksheet named
+C<$to_title>, including its formatting, data validation, and other
+properties, not just its cell values.
 
 =cut

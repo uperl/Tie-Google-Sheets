@@ -169,6 +169,18 @@ tied(%doc)->delete_worksheet($title);
 
 Deletes the worksheet named `$title`. Equivalent to `delete $doc{$title}`.
 
+## copy\_worksheet
+
+```
+tied(%doc)->copy_worksheet($from_title, $to_title);
+```
+
+Copies the worksheet named `$from_title` to a new worksheet named
+`$to_title`, including its formatting, data validation, and other
+properties, not just its cell values. Croaks if `$from_title` doesn't
+exist, or if `$to_title` already exists. Returns the new worksheet
+hashref, the same as `$doc{$to_title}`.
+
 ## worksheet\_titles
 
 ```perl

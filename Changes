@@ -6,7 +6,7 @@ Revision history for {{$dist->name}}
     - add batch_size property to Tie::Google::Sheets and Tie::Google::Client
   - Added support for duplicating a worksheet (gh#3)
     - add method ->copy_worksheet to Tie::Google::Sheets, and Tie::Google::Client
-  - Add support for backoff/retry
+  - Add support for backoff/retry (gh#4)
     - add backoff_retry property to Tie::Google::Sheets, and Tie::Google::Client
 
 0.01      2026-08-08 11:14:03 -0600

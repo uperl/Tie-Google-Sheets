@@ -52,6 +52,10 @@ subtest 'Tie::Google::Sheets::Client construction' => sub {
     like $err, qr/batch_size must be a positive integer/, 'zero batch_size';
     caller_ok $err, 'zero batch_size';
 
+    $err = dies { Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', access_token => 'y', backoff_retry => 0) };
+    like $err, qr/backoff_retry must be a positive integer/, 'zero backoff_retry';
+    caller_ok $err, 'zero backoff_retry';
+
     $err = dies {
         Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', access_token => 'y', service_account => [1, 2]);
     };

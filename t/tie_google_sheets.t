@@ -159,4 +159,45 @@ subtest 'API error propagation' => sub {
     like dies { $doc->{Sheet1}{A1} }, qr/403.*permission/i, 'API error is surfaced with status and message';
 };
 
+subtest 'backoff_retry' => sub {
+    my @slept;
+    local $Tie::Google::Sheets::Client::SLEEP = sub ($seconds) { push @slept, $seconds };
+
+    subtest 'succeeds after transient rate limiting' => sub {
+        @slept = ();
+        my($doc, $mock) = build_doc(backoff_retry => 3);
+
+        $mock->fail_next(429, 'Rate limit exceeded', 2);
+        is $doc->{Sheet1}{A1}, undef, 'request succeeds once retries exhaust the rate limiting';
+        is \@slept, [1, 2], 'backed off twice, doubling each time, before succeeding';
+    };
+
+    subtest 'croaks once retries are exhausted' => sub {
+        @slept = ();
+        my($doc, $mock) = build_doc(backoff_retry => 2);
+
+        $mock->fail_next(429, 'Rate limit exceeded', 100);
+        like dies { $doc->{Sheet1}{A1} }, qr/429.*Rate limit exceeded/, 'still croaks after exhausting retries';
+        is \@slept, [1, 2], 'backed off for every retry, then gave up';
+    };
+
+    subtest 'without backoff_retry, rate limiting fails immediately' => sub {
+        @slept = ();
+        my($doc, $mock) = build_doc();
+
+        $mock->fail_next(429, 'Rate limit exceeded', 100);
+        like dies { $doc->{Sheet1}{A1} }, qr/429.*Rate limit exceeded/, 'croaks on the first rate limited response';
+        is \@slept, [], 'never backed off';
+    };
+
+    subtest 'non-rate-limit errors are not retried' => sub {
+        @slept = ();
+        my($doc, $mock) = build_doc(backoff_retry => 3);
+
+        $mock->fail_next(403, 'The caller does not have permission', 100);
+        like dies { $doc->{Sheet1}{A1} }, qr/403.*permission/i, 'croaks immediately on a non-429 error';
+        is \@slept, [], 'never backed off';
+    };
+};
+
 done_testing;

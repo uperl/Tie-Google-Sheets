@@ -104,6 +104,14 @@ tie my %doc, 'Tie::Google::Sheets', %options;
     reference to it) goes out of scope. Queued writes can also be flushed
     explicitly at any time; see ["flush"](#flush).
 
+- backoff\_retry
+
+    Enables automatic retry when Google rate limits a request (HTTP status
+    429). When set to a positive integer, a rate limited API call is retried
+    that many times, with exponential backoff (1, 2, 4, ... seconds) between
+    attempts, before giving up and croaking. Defaults to `undef`, meaning a
+    rate limited request fails immediately.
+
 # TIE METHODS
 
 This class implements the standard [perltie](https://metacpan.org/pod/perltie) `TIEHASH` protocol; see

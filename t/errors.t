@@ -1,6 +1,6 @@
 use Test2::V0 -no_srand => 1;
 use v5.42;
-use File::Temp qw( tempfile );
+use Path::Tiny qw( tempfile );
 use lib 't/lib';
 use Local::FakeSheetsUA;
 use Tie::Google::Sheets;
@@ -61,17 +61,15 @@ subtest 'Tie::Google::Sheets::Client construction' => sub {
   SKIP: {
         skip 'root can read unreadable files', 2 if $> == 0;
 
-        my ($fh, $path) = tempfile();
-        print $fh '{}';
-        close $fh;
-        chmod 0000, $path;
+        my $path = tempfile();
+        $path->spew('{}');
+        $path->chmod(0000);
 
-        my $err = dies { Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', service_account => $path) };
+        my $err = dies { Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', service_account => "$path") };
         like $err, qr/unable to open service account key file/, 'service_account file cannot be opened';
         caller_ok $err, 'service_account file cannot be opened';
 
-        chmod 0600, $path;
-        unlink $path;
+        $path->chmod(0600);
     }
 };
 

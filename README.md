@@ -90,6 +90,20 @@ tie my %doc, 'Tie::Google::Sheets', %options;
     contract as [HTTP::Tiny](https://metacpan.org/pod/HTTP::Tiny)). Used as-is instead of wrapping ["ua"](#ua). Mutually
     exclusive with ["ua"](#ua).
 
+- batch\_size
+
+    Enables write batching. When set to a positive integer, cell writes (that
+    is, `$doc{$title}{$cell} = $value`) are queued instead of being sent
+    immediately, and are combined into a single API call once the queue reaches
+    `batch_size` pending writes. Defaults to `undef`, meaning every write is
+    sent immediately as its own API call.
+
+    Regardless of `batch_size`, queued writes are always flushed before they
+    could otherwise be observed out of order: immediately before any read,
+    before any worksheet is added or deleted, and when `%doc` (or the last
+    reference to it) goes out of scope. Queued writes can also be flushed
+    explicitly at any time; see ["flush"](#flush).
+
 # TIE METHODS
 
 This class implements the standard [perltie](https://metacpan.org/pod/perltie) `TIEHASH` protocol; see
@@ -164,10 +178,21 @@ my @titles = tied(%doc)->worksheet_titles;
 Returns the titles of all worksheets in the spreadsheet, in the order
 Google Sheets returns them. Equivalent to `keys %doc`.
 
+## flush
+
+```
+tied(%doc)->flush;
+```
+
+Sends any cell writes queued by the ["batch\_size"](#batch_size) constructor option as a
+single API call. A no-op if `batch_size` wasn't given, or if there is
+nothing queued. See ["batch\_size"](#batch_size) for when this happens automatically.
+
 # CAVEATS
 
 - Every cell access is a separate Google Sheets API call; there is no local
-caching or batching. Be mindful of
+caching, and writes are not batched unless ["batch\_size"](#batch_size) is given. Be
+mindful of
 [Google's API quotas](https://developers.google.com/sheets/api/limits) if
 you access many cells.
 - A spreadsheet must always have at least one worksheet, so `%doc` cannot be

@@ -14,6 +14,8 @@ package Tie::Google::Sheets::Client {
     use Class::Tiny qw( spreadsheet_id ua access_token service_account ), {
         token         => undef,
         token_expires => 0,
+        batch_size    => undef,
+        _pending      => sub { [] },
     };
 
     use constant {
@@ -35,6 +37,9 @@ package Tie::Google::Sheets::Client {
 
         croak 'only one of ua or any_ua may be given' if defined $args{ua} && defined $args{any_ua};
 
+        croak 'batch_size must be a positive integer'
+            if defined $args{batch_size} && $args{batch_size} !~ /\A[1-9][0-9]*\z/;
+
         my $ua = $args{any_ua} // HTTP::AnyUA->new( ua => $args{ua} // do {
             require HTTP::Tiny;
             HTTP::Tiny->new
@@ -47,6 +52,7 @@ package Tie::Google::Sheets::Client {
             service_account => defined $args{service_account}
                 ? $class->_load_service_account($args{service_account})
                 : undef,
+            batch_size      => $args{batch_size},
         };
     }
 
@@ -141,11 +147,13 @@ package Tie::Google::Sheets::Client {
     }
 
     sub sheet_titles ($self) {
+        $self->flush;
         my $data = $self->_request('GET', $self->_url([], undef, fields => 'sheets.properties.title'));
         return [ map { $_->{properties}{title} } @{ $data->{sheets} // [] } ];
     }
 
     sub sheet_id_for_title ($self, $title) {
+        $self->flush;
         my $data = $self->_request('GET', $self->_url([], undef, fields => 'sheets.properties'));
         for my $sheet (@{ $data->{sheets} // [] }) {
             return $sheet->{properties}{sheetId} if $sheet->{properties}{title} eq $title;
@@ -154,15 +162,39 @@ package Tie::Google::Sheets::Client {
     }
 
     sub get_value ($self, $title, $a1) {
+        $self->flush;
         my $data = $self->_request('GET', $self->_url([ 'values', $self->_quote_range($title, $a1) ]));
         my $row  = ($data->{values} // [])->[0] // [];
         return $row->[0];
     }
 
     sub update_value ($self, $title, $a1, $value) {
-        $self->_request('PUT', $self->_url([ 'values', $self->_quote_range($title, $a1) ], undef, valueInputOption => 'USER_ENTERED'),
-            body => { range => $self->_quote_range($title, $a1), majorDimension => 'ROWS', values => [[$value]] },
-        );
+        my $range = $self->_quote_range($title, $a1);
+
+        if($self->batch_size) {
+            push @{ $self->_pending }, { range => $range, majorDimension => 'ROWS', values => [[$value]] };
+            $self->flush if @{ $self->_pending } >= $self->batch_size;
+        }
+        else {
+            $self->_request('PUT', $self->_url([ 'values', $range ], undef, valueInputOption => 'USER_ENTERED'),
+                body => { range => $range, majorDimension => 'ROWS', values => [[$value]] },
+            );
+        }
+
+        return;
+    }
+
+    sub flush ($self) {
+        return unless @{ $self->_pending };
+
+        my $data = $self->_pending;
+        $self->_pending([]);
+
+        $self->_request('POST', $self->_url([ 'values' ], ':batchUpdate'), body => {
+            valueInputOption => 'USER_ENTERED',
+            data             => $data,
+        });
+
         return;
     }
 
@@ -172,16 +204,19 @@ package Tie::Google::Sheets::Client {
     }
 
     sub clear_range ($self, $title, $a1 = undef) {
+        $self->flush;
         $self->_request('POST', $self->_url([ 'values', $self->_quote_range($title, $a1) ], ':clear'), body => {});
         return;
     }
 
     sub get_all_values ($self, $title) {
+        $self->flush;
         my $data = $self->_request('GET', $self->_url([ 'values', $self->_quote_range($title) ]));
         return $data->{values} // [];
     }
 
     sub add_sheet ($self, $title) {
+        $self->flush;
         $self->_request('POST', $self->_url([], ':batchUpdate'), body => {
             requests => [ { addSheet => { properties => { title => $title } } } ],
         });
@@ -189,11 +224,20 @@ package Tie::Google::Sheets::Client {
     }
 
     sub delete_sheet ($self, $title) {
+        $self->flush;
         my $sheet_id = $self->sheet_id_for_title($title);
         croak "no such worksheet: $title" unless defined $sheet_id;
         $self->_request('POST', $self->_url([], ':batchUpdate'), body => {
             requests => [ { deleteSheet => { sheetId => $sheet_id } } ],
         });
+        return;
+    }
+
+    sub DESTROY ($self) {
+        return if ${^GLOBAL_PHASE} eq 'DESTRUCT';
+        return unless $self->{_pending} && @{ $self->{_pending} };
+        local $@;
+        eval { $self->flush };
         return;
     }
 
@@ -233,6 +277,12 @@ L</service_account>.
 
 The epoch time at which L</token> expires.
 
+=head2 batch_size
+
+The maximum number of pending cell writes accumulated by L</update_value>
+before they are automatically flushed. C<undef> (the default) disables
+batching: L</update_value> sends each write immediately.
+
 =head1 CONSTRUCTOR
 
 =head2 new
@@ -268,7 +318,18 @@ C<$title>.
 
  $client->update_value($title, $a1, $value);
 
-Sets the value of the cell C<$a1> in worksheet C<$title>.
+Sets the value of the cell C<$a1> in worksheet C<$title>. If L</batch_size>
+is set, the write is queued rather than sent immediately; see L</flush>.
+
+=head2 flush
+
+ $client->flush;
+
+Sends any cell writes queued by L</update_value> as a single
+C<values.batchUpdate> API call. A no-op if nothing is queued. Called
+automatically before every other API request (so reads always see
+previously queued writes), when the number of queued writes reaches
+L</batch_size>, and when the client is garbage collected.
 
 =head2 clear_value
 

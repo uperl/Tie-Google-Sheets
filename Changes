@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Added support for batching:
+    - add method ->flush to Tie::Google::Sheets and Tie::Google::Client
+    - add batch_size property to Tie::Google::Sheets and Tie::Google::Client
 
 0.01      2026-08-08 11:14:03 -0600
   - initial version

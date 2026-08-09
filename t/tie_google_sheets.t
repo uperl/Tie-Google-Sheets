@@ -4,13 +4,18 @@ use lib 't/lib';
 use Local::FakeSheetsUA;
 use Tie::Google::Sheets;
 
-sub build_doc {
+sub build_doc (%extra) {
     my $mock = Local::FakeSheetsUA->new;
     tie my %doc, 'Tie::Google::Sheets',
         spreadsheet_id => 'test-spreadsheet',
         access_token   => 'fake-token',
-        any_ua         => $mock;
+        any_ua         => $mock,
+        %extra;
     return (\%doc, $mock);
+}
+
+sub batch_update_calls ($mock) {
+    return grep { $_->{url} =~ /values:batchUpdate\z/ } $mock->calls;
 }
 
 subtest 'cell read/write' => sub {
@@ -64,6 +69,68 @@ subtest 'worksheet management' => sub {
     is [ sort keys %$doc ], [qw( Extra Sheet1 )], 'final worksheet list';
 
     like dies { %$doc = () }, qr/cannot delete every worksheet/, 'clearing the document croaks';
+};
+
+subtest 'write batching' => sub {
+    my($doc, $mock) = build_doc(batch_size => 2);
+
+    $doc->{Sheet1}{A1} = 'x';
+    is [ grep { $_->{method} eq 'PUT' } $mock->calls ], [], 'queued write is not sent immediately';
+    is [ batch_update_calls($mock) ], [], 'no flush yet below batch_size';
+
+    $doc->{Sheet1}{B1} = 'y';
+    is scalar(batch_update_calls($mock)), 1, 'reaching batch_size auto-flushes as a single call';
+    is $doc->{Sheet1}{A1}, 'x', 'first batched write is visible after auto-flush';
+    is $doc->{Sheet1}{B1}, 'y', 'second batched write is visible after auto-flush';
+
+    $doc->{Sheet1}{C1} = 'z';
+    is $doc->{Sheet1}{C1}, 'z', 'reading a queued cell flushes it first';
+    is scalar(batch_update_calls($mock)), 2, 'the read triggered a flush';
+
+    $doc->{Sheet1}{D1} = 'w';
+    tied(%$doc)->flush;
+    is scalar(batch_update_calls($mock)), 3, 'explicit flush sends the queued write';
+    is $doc->{Sheet1}{D1}, 'w', 'explicitly flushed write round-trips';
+
+    tied(%$doc)->flush;
+    is scalar(batch_update_calls($mock)), 3, 'flushing with nothing queued is a no-op';
+
+    $doc->{Sheet1}{E1} = 'v';
+    tied(%$doc)->add_worksheet('Extra');
+    is scalar(batch_update_calls($mock)), 4, 'adding a worksheet flushes pending writes first';
+    is $doc->{Sheet1}{E1}, 'v', 'write queued before add_worksheet still applied';
+};
+
+subtest 'write batching flushes when the document falls out of scope' => sub {
+    my $mock = Local::FakeSheetsUA->new;
+    {
+        tie my %doc, 'Tie::Google::Sheets',
+            spreadsheet_id => 'test-spreadsheet',
+            access_token   => 'fake-token',
+            any_ua         => $mock,
+            batch_size     => 10;
+        $doc{Sheet1}{A1} = 'scoped';
+    }
+    is scalar(batch_update_calls($mock)), 1, 'pending write is flushed once the tied document is destroyed';
+};
+
+subtest 'batch_size validation' => sub {
+    my $mock = Local::FakeSheetsUA->new;
+    like dies {
+        tie my %doc, 'Tie::Google::Sheets',
+            spreadsheet_id => 'test-spreadsheet',
+            access_token   => 'fake-token',
+            any_ua         => $mock,
+            batch_size     => 0;
+    }, qr/batch_size must be a positive integer/, 'batch_size of 0 croaks';
+
+    like dies {
+        tie my %doc, 'Tie::Google::Sheets',
+            spreadsheet_id => 'test-spreadsheet',
+            access_token   => 'fake-token',
+            any_ua         => $mock,
+            batch_size     => -1;
+    }, qr/batch_size must be a positive integer/, 'negative batch_size croaks';
 };
 
 subtest 'API error propagation' => sub {

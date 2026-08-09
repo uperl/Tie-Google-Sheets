@@ -82,6 +82,11 @@ package Tie::Google::Sheets {
         return @{ $self->{client}->sheet_titles };
     }
 
+    sub flush ($self) {
+        $self->{client}->flush;
+        return;
+    }
+
 }
 
 =head1 SYNOPSIS
@@ -168,6 +173,20 @@ providing a C<request($method, $url, \%options)> method with the same
 contract as L<HTTP::Tiny>). Used as-is instead of wrapping L</ua>. Mutually
 exclusive with L</ua>.
 
+=item batch_size
+
+Enables write batching. When set to a positive integer, cell writes (that
+is, C<< $doc{$title}{$cell} = $value >>) are queued instead of being sent
+immediately, and are combined into a single API call once the queue reaches
+C<batch_size> pending writes. Defaults to C<undef>, meaning every write is
+sent immediately as its own API call.
+
+Regardless of C<batch_size>, queued writes are always flushed before they
+could otherwise be observed out of order: immediately before any read,
+before any worksheet is added or deleted, and when C<%doc> (or the last
+reference to it) goes out of scope. Queued writes can also be flushed
+explicitly at any time; see L</flush>.
+
 =back
 
 =head1 TIE METHODS
@@ -238,6 +257,14 @@ Deletes the worksheet named C<$title>. Equivalent to C<< delete $doc{$title} >>.
 Returns the titles of all worksheets in the spreadsheet, in the order
 Google Sheets returns them. Equivalent to C<< keys %doc >>.
 
+=head2 flush
+
+ tied(%doc)->flush;
+
+Sends any cell writes queued by the L</batch_size> constructor option as a
+single API call. A no-op if C<batch_size> wasn't given, or if there is
+nothing queued. See L</batch_size> for when this happens automatically.
+
 =head1 CAVEATS
 
 =over 4
@@ -245,7 +272,8 @@ Google Sheets returns them. Equivalent to C<< keys %doc >>.
 =item *
 
 Every cell access is a separate Google Sheets API call; there is no local
-caching or batching. Be mindful of
+caching, and writes are not batched unless L</batch_size> is given. Be
+mindful of
 L<Google's API quotas|https://developers.google.com/sheets/api/limits> if
 you access many cells.
 

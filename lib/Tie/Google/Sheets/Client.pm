@@ -12,6 +12,7 @@ package Tie::Google::Sheets::Client {
     use URI::Escape qw( uri_escape );
     use Crypt::JWT qw( encode_jwt );
     use Ref::Util qw( is_ref is_plain_hashref is_plain_coderef );
+    use Path::Tiny qw( path );
 
     our @CARP_NOT = qw( Tie::Google::Sheets Tie::Google::Sheets::Worksheet Class::Tiny::Object );
 
@@ -63,11 +64,12 @@ package Tie::Google::Sheets::Client {
     sub _load_service_account ($class, $val) {
         return $val if is_plain_hashref($val);
         croak 'service_account must be a hashref of the decoded key file, or a path to one'
-            unless !is_ref($val) && -f $val;
-        open my $fh, '<:raw', $val
-            or croak "unable to open service account key file $val: $!";
-        my $json = do { local $/; <$fh> };
-        close $fh;
+            unless !is_ref($val) && path($val)->is_file;
+
+        my $json;
+        try { $json = path($val)->slurp_raw }
+        catch ($e) { croak "unable to open service account key file $val: $!" }
+
         return decode_json($json);
     }
 

@@ -34,6 +34,23 @@ subtest 'cell read/write' => sub {
     like dies { $doc->{Sheet1}{'not a cell'} }, qr/invalid cell reference/, 'bad cell reference croaks';
 };
 
+subtest 'get_formula / get_all_formulas' => sub {
+    my($doc, $mock) = build_doc();
+    my $client = tied(%$doc)->_client;
+
+    $doc->{Sheet1}{A1} = 3;
+    $doc->{Sheet1}{B1} = 4;
+    $mock->{sheets}{Sheet1}{formulas}{C1} = '=A1+B1';
+    $mock->{sheets}{Sheet1}{cells}{C1}    = 7;
+
+    is $client->get_formula('Sheet1', 'C1'), '=A1+B1', 'get_formula returns the formula, not the computed value';
+    is $client->get_formula('Sheet1', 'A1'), 3, 'get_formula falls back to the plain value for a non-formula cell';
+    is $client->get_value('Sheet1', 'C1'), 7, 'get_value is unaffected, still returns the computed value';
+
+    is $client->get_all_formulas('Sheet1'), [[3, 4, '=A1+B1']], 'get_all_formulas mixes formulas and plain values';
+    is $client->get_all_values('Sheet1'), [[3, 4, 7]], 'get_all_values is unaffected';
+};
+
 subtest 'worksheet iteration' => sub {
     my($doc) = build_doc();
 

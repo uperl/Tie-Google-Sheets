@@ -201,6 +201,14 @@ package Tie::Google::Sheets::Client {
         return $row->[0];
     }
 
+    sub get_formula ($self, $title, $a1) {
+        $self->flush;
+        my $data = $self->_request('GET',
+            $self->_url([ 'values', $self->_quote_range($title, $a1) ], undef, valueRenderOption => 'FORMULA'));
+        my $row = ($data->{values} // [])->[0] // [];
+        return $row->[0];
+    }
+
     sub update_value ($self, $title, $a1, $value) {
         my $range = $self->_quote_range($title, $a1);
 
@@ -245,6 +253,13 @@ package Tie::Google::Sheets::Client {
     sub get_all_values ($self, $title) {
         $self->flush;
         my $data = $self->_request('GET', $self->_url([ 'values', $self->_quote_range($title) ]));
+        return $data->{values} // [];
+    }
+
+    sub get_all_formulas ($self, $title) {
+        $self->flush;
+        my $data = $self->_request('GET',
+            $self->_url([ 'values', $self->_quote_range($title) ], undef, valueRenderOption => 'FORMULA'));
         return $data->{values} // [];
     }
 
@@ -370,6 +385,14 @@ if there is no such worksheet.
 Returns the value of the cell C<$a1> (for example C<"A1">) in worksheet
 C<$title>.
 
+=head2 get_formula
+
+ my $formula = $client->get_formula($title, $a1);
+
+Returns the formula of the cell C<$a1> in worksheet C<$title>, as text (for
+example C<"=SUM(A1:A10)">), or the same as L</get_value> if the cell
+doesn't contain a formula.
+
 =head2 update_value
 
  $client->update_value($title, $a1, $value);
@@ -407,6 +430,14 @@ is omitted, clears every cell in the worksheet.
 
 Returns an array reference of array references holding every value in the
 used range of worksheet C<$title>.
+
+=head2 get_all_formulas
+
+ my $rows = $client->get_all_formulas($title);
+
+Like L</get_all_values>, but returns formulas (as text) instead of values,
+for every cell in the used range of worksheet C<$title> that has one; cells
+without a formula hold the same value L</get_all_values> would return.
 
 =head2 add_sheet
 

@@ -21,6 +21,7 @@ $modules{$_} = $_ for qw(
   JSON::XS
   Path::Tiny
   Ref::Util
+  Test2::Require::EnvVar
   Test2::V0
   URI
   URI::Escape

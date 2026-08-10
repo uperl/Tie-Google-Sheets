@@ -62,6 +62,12 @@ subtest 'Tie::Google::Sheets::Client construction' => sub {
     like $err, qr/service_account must be a hashref/, 'service_account is neither hashref nor path';
     caller_ok $err, 'service_account is neither hashref nor path';
 
+    $err = dies {
+        Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', access_token => 'y', bogus => 1, also_bogus => 2);
+    };
+    like $err, qr/unknown constructor argument\(s\): also_bogus, bogus/, 'unknown constructor arguments';
+    caller_ok $err, 'unknown constructor arguments';
+
   SKIP: {
         skip 'root can read unreadable files', 2 if $> == 0;
 

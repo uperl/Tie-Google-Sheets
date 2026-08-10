@@ -33,8 +33,17 @@ subtest 'basic' => sub {
 
     is $doc{$title_one}, D(), 'worksheet exists';
 
-    is delete $doc{$title_one}, U(), 'delete worksheet';
+    is $doc{$title_one}{A1}, U(), 'value has no value yet';
+    is $doc{$title_one}{A1} = 'foo', 'foo', 'assign value';
+    is $doc{$title_one}{A1}, 'foo', 'fetch value';
 
+    $doc{$title_one}{A2} = 1;
+    $doc{$title_one}{A3} = 2;
+    $doc{$title_one}{A4} = 3;
+    $doc{$title_one}{A5} = "=A2+A3+A4";
+    is $doc{$title_one}{A5}, 6, 'fetch returns value';
+
+    is delete $doc{$title_one}, U(), 'delete worksheet';
     is $doc{$title_one}, U(), 'worksheet does not exist';
 };
 

@@ -65,7 +65,7 @@ subtest 'Tie::Google::Sheets::Client construction' => sub {
     $err = dies {
         Tie::Google::Sheets::Client->new(spreadsheet_id => 'x', access_token => 'y', bogus => 1, also_bogus => 2);
     };
-    like $err, qr/unknown constructor argument\(s\): also_bogus, bogus/, 'unknown constructor arguments';
+    like $err, qr/unknown constructor argument\(s\): also_bogus bogus/, 'unknown constructor arguments';
     caller_ok $err, 'unknown constructor arguments';
 
   SKIP: {

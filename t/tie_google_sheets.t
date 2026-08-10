@@ -46,6 +46,14 @@ subtest 'worksheet iteration' => sub {
     is [ keys %{ $doc->{Sheet1} } ], [], 'CLEAR on a worksheet empties it';
 };
 
+subtest 'FETCH on a missing worksheet' => sub {
+    my($doc) = build_doc();
+
+    is $doc->{NoSuchSheet}, undef, 'fetching an unknown worksheet directly returns undef';
+    is tied(%$doc)->FETCH('NoSuchSheet'), undef, 'FETCH returns undef for an unknown worksheet';
+    is $doc->{Sheet1}, D(), 'fetching an existing worksheet still returns something defined';
+};
+
 subtest 'worksheet management' => sub {
     my($doc, $mock) = build_doc();
 

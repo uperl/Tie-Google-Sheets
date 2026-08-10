@@ -28,11 +28,12 @@ package Tie::Google::Sheets {
     }
 
     sub FETCH ($self, $title) {
-        return $self->_worksheets->{$title} //= do {
-            my %worksheet;
-            tie %worksheet, 'Tie::Google::Sheets::Worksheet', client => $self->_client, title => $title;
-            \%worksheet;
-        };
+        return $self->_worksheets->{$title} if exists $self->_worksheets->{$title};
+        return undef unless $self->EXISTS($title);
+
+        my %worksheet;
+        tie %worksheet, 'Tie::Google::Sheets::Worksheet', client => $self->_client, title => $title;
+        return $self->_worksheets->{$title} = \%worksheet;
     }
 
     sub STORE ($self, $title, $value) {
@@ -229,8 +230,8 @@ Constructor, called via C<tie>; see L</CONSTRUCTOR> above.
 =head2 FETCH
 
 Returns the worksheet named by the given key, as a hashref implemented by
-L<Tie::Google::Sheets::Worksheet>. The worksheet does not need to already
-exist on the server; accessing cells on one that doesn't will fail.
+L<Tie::Google::Sheets::Worksheet>, or C<undef> if no worksheet with that
+title exists on the server.
 
 =head2 STORE
 
@@ -324,6 +325,15 @@ emptied with C<%doc = ()>; delete worksheets individually instead.
 
 Only cell values are read and written; formatting, formulas results vs
 formula text, and other cell metadata are not exposed.
+
+=item *
+
+Because of how Perl autovivifies nested data structures, reading or writing
+a cell of a worksheet that doesn't yet exist (for example
+C<< $doc{NewSheet}{A1} >>) creates that worksheet as a side effect, the same
+way C<< $doc{NewSheet} = undef >> would. To check whether a worksheet
+exists without creating it, use C<exists $doc{$title}> or
+L</worksheet_titles>, not a truth test on C<$doc{$title}>.
 
 =back
 

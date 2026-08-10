@@ -58,7 +58,7 @@ package Tie::Google::Sheets::Client {
         croak 'backoff_retry must be a positive integer'
             if defined $backoff_retry && $backoff_retry !~ /\A[1-9][0-9]*\z/;
 
-        croak 'unknown constructor argument(s): ' . join(', ', sort keys %args) if %args;
+        croak "unknown constructor argument(s): @{[ sort keys %args ]}" if %args;
 
         my $ua = $any_ua_arg // HTTP::AnyUA->new( ua => $ua_arg // do {
             require HTTP::Tiny;

@@ -9,7 +9,9 @@ package Tie::Google::Sheets::Worksheet {
 
     our @CARP_NOT = qw( Tie::Google::Sheets Tie::Google::Sheets::Client Class::Tiny::Object );
 
-    use Class::Tiny qw( _client _title );
+    use Class::Tiny qw( _client _title ), {
+        _fetch_mode => 'value',
+    };
 
     sub BUILDARGS ($class, %args) {
         return {
@@ -22,13 +24,24 @@ package Tie::Google::Sheets::Worksheet {
         return $class->new(%args);
     }
 
+    sub fetch_mode ($self, @args) {
+        if(@args) {
+            my $mode = $args[0];
+            croak "fetch_mode must be 'value' or 'formula'"
+                unless defined $mode && ($mode eq 'value' || $mode eq 'formula');
+            $self->_fetch_mode($mode);
+        }
+        return $self->_fetch_mode;
+    }
+
     sub _normalize_key ($self, $key) {
         croak "invalid cell reference: $key" unless $key =~ /^[A-Za-z]+[1-9][0-9]*\z/;
         return uc $key;
     }
 
     sub FETCH ($self, $key) {
-        return $self->_client->get_value($self->_title, $self->_normalize_key($key));
+        my $method = $self->_fetch_mode eq 'formula' ? 'get_formula' : 'get_value';
+        return $self->_client->$method($self->_title, $self->_normalize_key($key));
     }
 
     sub STORE ($self, $key, $value) {
@@ -38,7 +51,7 @@ package Tie::Google::Sheets::Worksheet {
 
     sub DELETE ($self, $key) {
         $key = $self->_normalize_key($key);
-        my $old = $self->_client->get_value($self->_title, $key);
+        my $old = $self->FETCH($key);
         $self->_client->clear_value($self->_title, $key);
         return $old;
     }
@@ -53,7 +66,8 @@ package Tie::Google::Sheets::Worksheet {
     }
 
     sub FIRSTKEY ($self) {
-        my $grid = $self->_client->get_all_values($self->_title);
+        my $method = $self->_fetch_mode eq 'formula' ? 'get_all_formulas' : 'get_all_values';
+        my $grid   = $self->_client->$method($self->_title);
         my @keys;
         for my $r (0 .. $grid->$#*) {
             my $row = $grid->[$r] // [];
@@ -107,7 +121,7 @@ tab.
 Hash keys are case insensitive and are normalized to upper case. A key that
 does not look like an A1-style cell reference will throw an exception.
 
-=head1 METHODS
+=head1 TIE METHODS
 
 This class implements the standard L<perltie> C<TIEHASH> protocol; see
 L<perltie> for the full semantics of each method.
@@ -120,7 +134,8 @@ respectively).
 
 =head2 FETCH
 
-Returns the value of a cell, or C<undef> if it is empty.
+Returns the value of a cell, or C<undef> if it is empty. Returns the
+cell's formula instead if L</fetch_mode> is set to C<formula>.
 
 =head2 STORE
 
@@ -128,7 +143,8 @@ Sets the value of a cell.
 
 =head2 DELETE
 
-Clears a cell and returns its previous value.
+Clears a cell and returns its previous value (or formula; see
+L</fetch_mode>).
 
 =head2 EXISTS
 
@@ -141,7 +157,25 @@ Clears every cell in the worksheet.
 =head2 FIRSTKEY, NEXTKEY
 
 Together implement iteration (C<keys>, C<values>, C<each>) over every
-non-empty cell in the worksheet's used range.
+non-empty cell in the worksheet's used range. If L</fetch_mode> is set to
+C<formula>, C<values> (and C<each>) yield formulas instead of values.
+
+=head1 METHODS
+
+These are ordinary (non-tie) methods available on the underlying object via
+C<tied %{ $doc{$title} }>.
+
+=head2 fetch_mode
+
+ tied(%{ $doc{$title} })->fetch_mode($mode);
+ my $mode = tied(%{ $doc{$title} })->fetch_mode;
+
+Gets or sets whether L</FETCH> (and so reading a cell, iterating with
+C<values>/C<each>, or deleting a cell) returns a cell's computed value or
+its formula text. C<$mode> must be C<value> (the default) or C<formula>.
+Does not affect L</STORE>: cells are always written the same way regardless
+of C<fetch_mode>, and writing a string starting with C<=> creates a
+formula just as it would when typed directly into Google Sheets.
 
 =head1 CAVEATS
 

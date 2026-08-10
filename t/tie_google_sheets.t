@@ -51,6 +51,34 @@ subtest 'get_formula / get_all_formulas' => sub {
     is $client->get_all_values('Sheet1'), [[3, 4, 7]], 'get_all_values is unaffected';
 };
 
+subtest 'fetch_mode' => sub {
+    my($doc, $mock) = build_doc();
+    my $ws = tied(%{ $doc->{Sheet1} });
+
+    is $ws->fetch_mode, 'value', 'fetch_mode defaults to value';
+
+    $doc->{Sheet1}{A1} = 3;
+    $doc->{Sheet1}{B1} = 4;
+    $mock->{sheets}{Sheet1}{formulas}{C1} = '=A1+B1';
+    $mock->{sheets}{Sheet1}{cells}{C1}    = 7;
+
+    is $doc->{Sheet1}{C1}, 7, 'fetching a cell in value mode returns the computed value';
+
+    is $ws->fetch_mode('formula'), 'formula', 'fetch_mode returns the new mode when setting';
+    is $doc->{Sheet1}{C1}, '=A1+B1', 'fetching a cell in formula mode returns the formula';
+    is $doc->{Sheet1}{A1}, 3, 'a non-formula cell still returns its plain value in formula mode';
+
+    is [ sort keys %{ $doc->{Sheet1} } ], [qw( A1 B1 C1 )], 'iteration keys are unaffected by fetch_mode';
+    is [ sort values %{ $doc->{Sheet1} } ], ['3', '4', '=A1+B1'], 'iterating values honors fetch_mode too';
+
+    is delete $doc->{Sheet1}{C1}, '=A1+B1', 'delete returns the formula in formula mode';
+
+    $ws->fetch_mode('value');
+    is $ws->fetch_mode, 'value', 'fetch_mode can be switched back to value';
+
+    like dies { $ws->fetch_mode('bogus') }, qr/fetch_mode must be 'value' or 'formula'/, 'invalid fetch_mode croaks';
+};
+
 subtest 'worksheet iteration' => sub {
     my($doc) = build_doc();
 

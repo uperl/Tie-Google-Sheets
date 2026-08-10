@@ -1,4 +1,4 @@
-use Test2::V0 -no_srand;
+use Test2::V0 -no_srand => 1;
 use v5.42;
 use Test2::Require::EnvVar 'TEST_TIE_GOOGLE_SHEETS_DOCUMENT_ID';
 use Test2::Require::EnvVar 'TEST_TIE_GOOGLE_SERVICE_TOKEN';

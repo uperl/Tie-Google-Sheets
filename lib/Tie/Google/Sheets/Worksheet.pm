@@ -103,9 +103,9 @@ package Tie::Google::Sheets::Worksheet {
 =head1 SYNOPSIS
 
  use Tie::Google::Sheets;
-
+ 
  tie my %doc, 'Tie::Google::Sheets', spreadsheet_id => $id, service_account => $key_file;
-
+ 
  # $doc{Sheet1} is a plain hashref backed by this class
  $doc{Sheet1}{A1} = 'hello';
  print $doc{Sheet1}{A1};

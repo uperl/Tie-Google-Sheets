@@ -113,23 +113,23 @@ package Tie::Google::Sheets {
 =head1 SYNOPSIS
 
  use Tie::Google::Sheets;
-
+ 
  tie my %doc, 'Tie::Google::Sheets',
      spreadsheet_id  => '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
      service_account => '/path/to/service-account-key.json';
-
+ 
  # read and write individual cells
  my $name = $doc{Employees}{A1};
  $doc{Employees}{A2} = 'Grace Hopper';
-
+ 
  # create a new worksheet, optionally pre-populated
  tied(%doc)->add_worksheet('Report', { A1 => 'Total', B1 => 42 });
-
+ 
  # iterate over worksheet tabs
  for my $title (keys %doc) {
      print "$title\n";
  }
-
+ 
  # remove a worksheet
  delete $doc{Report};
 

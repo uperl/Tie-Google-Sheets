@@ -6,7 +6,7 @@ use Tie::Google::Sheets;
 
 subtest 'basic' => sub {
 
-    tie my %doc, 'Tie::Google::Sheets', 
+    tie my %doc, 'Tie::Google::Sheets',
         spreadsheet_id  => $ENV{TEST_TIE_GOOGLE_SHEETS_DOCUMENT_ID},
         service_account => $ENV{TEST_TIE_GOOGLE_SERVICE_TOKEN},
         backoff_retry   => 8,

@@ -33,25 +33,34 @@ package Tie::Google::Sheets::Client {
     };
 
     sub BUILDARGS ($class, %args) {
-        my $spreadsheet_id = $args{spreadsheet_id};
-        if(!defined $spreadsheet_id && defined $args{spreadsheet_url}) {
-            ($spreadsheet_id) = $args{spreadsheet_url} =~ m{/d/([a-zA-Z0-9_-]+)};
+        my $spreadsheet_id  = delete $args{spreadsheet_id};
+        my $spreadsheet_url = delete $args{spreadsheet_url};
+        if(!defined $spreadsheet_id && defined $spreadsheet_url) {
+            ($spreadsheet_id) = $spreadsheet_url =~ m{/d/([a-zA-Z0-9_-]+)};
         }
         croak 'spreadsheet_id (or a recognizable spreadsheet_url) is required'
             unless defined $spreadsheet_id;
 
+        my $service_account = delete $args{service_account};
+        my $access_token    = delete $args{access_token};
         croak 'one of service_account or access_token is required'
-            unless defined $args{service_account} || defined $args{access_token};
+            unless defined $service_account || defined $access_token;
 
-        croak 'only one of ua or any_ua may be given' if defined $args{ua} && defined $args{any_ua};
+        my $ua_arg     = delete $args{ua};
+        my $any_ua_arg = delete $args{any_ua};
+        croak 'only one of ua or any_ua may be given' if defined $ua_arg && defined $any_ua_arg;
 
+        my $batch_size = delete $args{batch_size};
         croak 'batch_size must be a positive integer'
-            if defined $args{batch_size} && $args{batch_size} !~ /\A[1-9][0-9]*\z/;
+            if defined $batch_size && $batch_size !~ /\A[1-9][0-9]*\z/;
 
+        my $backoff_retry = delete $args{backoff_retry};
         croak 'backoff_retry must be a positive integer'
-            if defined $args{backoff_retry} && $args{backoff_retry} !~ /\A[1-9][0-9]*\z/;
+            if defined $backoff_retry && $backoff_retry !~ /\A[1-9][0-9]*\z/;
 
-        my $ua = $args{any_ua} // HTTP::AnyUA->new( ua => $args{ua} // do {
+        croak 'unknown constructor argument(s): ' . join(', ', sort keys %args) if %args;
+
+        my $ua = $any_ua_arg // HTTP::AnyUA->new( ua => $ua_arg // do {
             require HTTP::Tiny;
             HTTP::Tiny->new
         });
@@ -59,12 +68,12 @@ package Tie::Google::Sheets::Client {
         return {
             spreadsheet_id  => $spreadsheet_id,
             ua              => $ua,
-            access_token    => $args{access_token},
-            service_account => defined $args{service_account}
-                ? $class->_load_service_account($args{service_account})
+            access_token    => $access_token,
+            service_account => defined $service_account
+                ? $class->_load_service_account($service_account)
                 : undef,
-            batch_size      => $args{batch_size},
-            backoff_retry   => $args{backoff_retry},
+            batch_size      => $batch_size,
+            backoff_retry   => $backoff_retry,
         };
     }
 

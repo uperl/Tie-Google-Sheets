@@ -11,6 +11,7 @@ Revision history for {{$dist->name}}
   - Fix bug where non-existent worksheets could be returned from a fetch (gh#5)
   - Added support for reading formula instead of values (gh#5)
     - add methods ->get_formula and ->get_all_formulas to Tie::Google::Client
+    - add method ->fetch_mode to Tie::Google::Sheets::Worksheet
 
 0.01      2026-08-08 11:14:03 -0600
   - initial version

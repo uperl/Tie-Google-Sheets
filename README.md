@@ -124,8 +124,8 @@ Constructor, called via `tie`; see ["CONSTRUCTOR"](#constructor) above.
 ## FETCH
 
 Returns the worksheet named by the given key, as a hashref implemented by
-[Tie::Google::Sheets::Worksheet](https://metacpan.org/pod/Tie::Google::Sheets::Worksheet). The worksheet does not need to already
-exist on the server; accessing cells on one that doesn't will fail.
+[Tie::Google::Sheets::Worksheet](https://metacpan.org/pod/Tie::Google::Sheets::Worksheet), or `undef` if no worksheet with that
+title exists on the server.
 
 ## STORE
 
@@ -219,6 +219,12 @@ you access many cells.
 emptied with `%doc = ()`; delete worksheets individually instead.
 - Only cell values are read and written; formatting, formulas results vs
 formula text, and other cell metadata are not exposed.
+- Because of how Perl autovivifies nested data structures, reading or writing
+a cell of a worksheet that doesn't yet exist (for example
+`$doc{NewSheet}{A1}`) creates that worksheet as a side effect, the same
+way `$doc{NewSheet} = undef` would. To check whether a worksheet
+exists without creating it, use `exists $doc{$title}` or
+["worksheet\_titles"](#worksheet_titles), not a truth test on `$doc{$title}`.
 
 # SEE ALSO
 

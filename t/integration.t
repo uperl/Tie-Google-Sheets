@@ -43,8 +43,31 @@ subtest 'basic' => sub {
     $doc{$title_one}{A5} = "=A2+A3+A4";
     is $doc{$title_one}{A5}, 6, 'fetch returns value';
 
+    my $ws = $doc{$title_one};
+    is(tied(%$ws)->fetch_mode, 'value', 'default fetch mode');
+    is(tied(%$ws)->fetch_mode('formula'), 'formula', 'set to formula');
+    is $doc{$title_one}{A5}, '=A2+A3+A4', 'fetch returns formula';
+
     is delete $doc{$title_one}, U(), 'delete worksheet';
     is $doc{$title_one}, U(), 'worksheet does not exist';
+
+    my $title_two = "bar-$$-" . time;
+
+    $ws = tied(%doc)->copy_worksheet('template', $title_two);
+
+    is
+        tied(%$ws),
+        object {
+            prop isa => 'Tie::Google::Sheets::Worksheet';
+        },
+        'second sheet object is the right class',
+    ;
+
+    is $ws->{A1}, 'A';
+    is $ws->{B1}, 'B';
+    is $ws->{A2}, 1;
+
+    delete $doc{$_} for grep /^(foo|bar)-/n, keys %doc;
 };
 
 done_testing;

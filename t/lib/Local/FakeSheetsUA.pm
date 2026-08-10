@@ -7,11 +7,12 @@ package Local::FakeSheetsUA {
 
     use JSON::MaybeXS qw( decode_json encode_json );
     use URI::Escape qw( uri_unescape );
+    use URI;
 
     sub new ($class, %args) {
         return bless {
             id      => $args{spreadsheet_id} // 'test-spreadsheet',
-            sheets  => { Sheet1 => { id => 0, cells => {} } },
+            sheets  => { Sheet1 => { id => 0, cells => {}, formulas => {} } },
             order   => ['Sheet1'],
             next_id => 1,
             calls   => [],
@@ -51,7 +52,11 @@ package Local::FakeSheetsUA {
         }
         elsif($path =~ m{\A[^/]+/values/(.+)\z}) {
             my $range_enc = $1;
-            return $method eq 'GET' ? $self->_get_values($range_enc) : $self->_update_values($range_enc, $opts);
+            if($method eq 'GET') {
+                my %query = URI->new($url)->query_form;
+                return $self->_get_values($range_enc, $query{valueRenderOption} // 'FORMATTED_VALUE');
+            }
+            return $self->_update_values($range_enc, $opts);
         }
         elsif($path =~ m{\A[^/]+\z}) {
             return $self->_metadata;
@@ -77,15 +82,17 @@ package Local::FakeSheetsUA {
         return ($title, $a1);
     }
 
-    sub _get_values ($self, $range_enc) {
+    sub _get_values ($self, $range_enc, $value_render_option) {
         my($title, $a1) = _parse_range($range_enc);
         return $self->_json_response(400, 0, { error => { message => "Unable to parse range: no such sheet $title" } })
             unless exists $self->{sheets}{$title};
 
-        my $cells = $self->{sheets}{$title}{cells};
+        my $cells    = $self->{sheets}{$title}{cells};
+        my $formulas = $self->{sheets}{$title}{formulas};
+        my $source   = $value_render_option eq 'FORMULA' ? { %$cells, %$formulas } : $cells;
 
         if(defined $a1) {
-            my $val = $cells->{ uc $a1 };
+            my $val = $source->{ uc $a1 };
             return $self->_json_response(200, 1, defined($val) ? { values => [[$val]] } : {});
         }
 
@@ -97,7 +104,7 @@ package Local::FakeSheetsUA {
         }
         my @grid;
         for my $r (1 .. $max_r) {
-            push @grid, [ map { $cells->{ _rc_to_a1($_, $r) } // '' } 1 .. $max_c ];
+            push @grid, [ map { $source->{ _rc_to_a1($_, $r) } // '' } 1 .. $max_c ];
         }
         return $self->_json_response(200, 1, @grid ? { values => \@grid } : {});
     }
@@ -134,9 +141,11 @@ package Local::FakeSheetsUA {
 
         if(defined $a1) {
             delete $self->{sheets}{$title}{cells}{ uc $a1 };
+            delete $self->{sheets}{$title}{formulas}{ uc $a1 };
         }
         else {
-            $self->{sheets}{$title}{cells} = {};
+            $self->{sheets}{$title}{cells}    = {};
+            $self->{sheets}{$title}{formulas} = {};
         }
 
         return $self->_json_response(200, 1, { spreadsheetId => $self->{id}, clearedRange => $range_enc });
@@ -150,7 +159,7 @@ package Local::FakeSheetsUA {
                 my $title = $add->{properties}{title};
                 return $self->_json_response(400, 0, { error => { message => "sheet already exists: $title" } })
                     if exists $self->{sheets}{$title};
-                $self->{sheets}{$title} = { id => $self->{next_id}++, cells => {} };
+                $self->{sheets}{$title} = { id => $self->{next_id}++, cells => {}, formulas => {} };
                 push @{ $self->{order} }, $title;
             }
             elsif(my $del = $req->{deleteSheet}) {
@@ -170,8 +179,9 @@ package Local::FakeSheetsUA {
                 return $self->_json_response(400, 0, { error => { message => "sheet already exists: $to_title" } })
                     if exists $self->{sheets}{$to_title};
                 $self->{sheets}{$to_title} = {
-                    id    => $self->{next_id}++,
-                    cells => { %{ $self->{sheets}{$from_title}{cells} } },
+                    id       => $self->{next_id}++,
+                    cells    => { %{ $self->{sheets}{$from_title}{cells} } },
+                    formulas => { %{ $self->{sheets}{$from_title}{formulas} } },
                 };
                 push @{ $self->{order} }, $to_title;
             }
